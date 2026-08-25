@@ -12,6 +12,11 @@ export interface JwtPayload {
 }
 
 export type DeviceType = 'sensor' | 'actuator' | 'gateway';
-export type DeviceStatus = 'online' | 'offline' | 'warning' | 'error';
+export enum DeviceStatus {
+  ONLINE = 'online',
+  OFFLINE = 'offline',
+  WARNING = 'warning',
+  ERROR = 'error',
+}
 export type UserRole = 'admin' | 'user';
 export type AlertSeverity = 'info' | 'warning' | 'critical';

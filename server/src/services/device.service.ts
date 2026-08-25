@@ -2,6 +2,7 @@ import { Op } from 'sequelize';
 import Device from '../models/Device';
 import DeviceData from '../models/DeviceData';
 import { NotFoundError } from '../middleware/AppError';
+import { DeviceStatus } from '../types';
 
 export const getDevices = async (query: {
   type?: string;
@@ -72,7 +73,7 @@ export const createDevice = async (data: {
     type: data.type,
     location: data.location,
     parameters: data.parameters,
-    status: 'offline',
+    status: DeviceStatus.OFFLINE,
   });
 
   return { device };
@@ -144,10 +145,10 @@ export const getDeviceData = async (
 
 export const getDeviceStats = async () => {
   const totalDevices = await Device.count();
-  const onlineDevices = await Device.count({ where: { status: 'online' } });
-  const offlineDevices = await Device.count({ where: { status: 'offline' } });
-  const warningDevices = await Device.count({ where: { status: 'warning' } });
-  const errorDevices = await Device.count({ where: { status: 'error' } });
+  const onlineDevices = await Device.count({ where: { status: DeviceStatus.ONLINE } });
+  const offlineDevices = await Device.count({ where: { status: DeviceStatus.OFFLINE } });
+  const warningDevices = await Device.count({ where: { status: DeviceStatus.WARNING } });
+  const errorDevices = await Device.count({ where: { status: DeviceStatus.ERROR } });
 
   const devicesByType = await Device.findAll({
     attributes: ['type', [Device.sequelize!.fn('COUNT', 'id'), 'count']],
