@@ -30,7 +30,6 @@ export const register = async (data: {
     name: data.name,
     role: 'user',
   });
-  const token = generateToken(user);
 
   return {
     user: {
@@ -39,7 +38,6 @@ export const register = async (data: {
       name: user.name,
       role: user.role,
     },
-    token,
   };
 };
 
