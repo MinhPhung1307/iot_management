@@ -5,9 +5,20 @@ import { AppError } from '../../middleware/AppError';
 
 jest.mock('../../models/User');
 jest.mock('jsonwebtoken');
+jest.mock('../../config/redis', () => ({
+  __esModule: true,
+  default: {
+    get: jest.fn(),
+    set: jest.fn(),
+    del: jest.fn(),
+  },
+}));
+
+import redis from '../../config/redis';
 
 const mockUser = User as jest.Mocked<typeof User>;
 const mockJwt = jwt as jest.Mocked<typeof jwt>;
+const mockRedis = redis as jest.Mocked<typeof redis>;
 
 describe('auth.service', () => {
   const fakeUser = {
@@ -107,7 +118,9 @@ describe('auth.service', () => {
         comparePassword: jest.fn().mockResolvedValue(true),
       } as unknown as User;
 
+      mockRedis.get.mockResolvedValue(null);
       mockUser.findOne.mockResolvedValue(userWithCompare);
+      mockRedis.del.mockResolvedValue(1);
       mockJwt.sign.mockReturnValue('mock-token' as any);
 
       const result = await login({
@@ -115,6 +128,7 @@ describe('auth.service', () => {
         password: 'password123',
       });
 
+      expect(mockRedis.get).toHaveBeenCalledWith('login_locked:test@example.com');
       expect(mockUser.findOne).toHaveBeenCalledWith({
         where: { email: 'test@example.com' },
       });
@@ -130,7 +144,46 @@ describe('auth.service', () => {
       });
     });
 
+    it('should reset login attempts on successful login', async () => {
+      const userWithCompare = {
+        ...fakeUser,
+        comparePassword: jest.fn().mockResolvedValue(true),
+      } as unknown as User;
+
+      mockRedis.get
+        .mockResolvedValueOnce(null)   // isAccountLocked
+        .mockResolvedValueOnce('2');   // getLoginAttempts
+      mockUser.findOne.mockResolvedValue(userWithCompare);
+      mockRedis.del.mockResolvedValue(1);
+      mockJwt.sign.mockReturnValue('mock-token' as any);
+
+      await login({
+        email: 'test@example.com',
+        password: 'password123',
+      });
+
+      expect(mockRedis.del).toHaveBeenCalledWith('login_attempts:test@example.com');
+    });
+
+    it('should throw UnauthorizedError if account is locked', async () => {
+      mockRedis.get.mockResolvedValue('locked');
+
+      await expect(
+        login({ email: 'test@example.com', password: 'password123' })
+      ).rejects.toThrow(AppError);
+
+      try {
+        await login({ email: 'test@example.com', password: 'password123' });
+      } catch (e) {
+        expect((e as AppError).statusCode).toBe(401);
+        expect((e as AppError).message).toContain('Account locked');
+      }
+
+      expect(mockUser.findOne).not.toHaveBeenCalled();
+    });
+
     it('should throw UnauthorizedError if user not found', async () => {
+      mockRedis.get.mockResolvedValue(null);
       mockUser.findOne.mockResolvedValue(null);
 
       await expect(
@@ -145,24 +198,54 @@ describe('auth.service', () => {
       }
     });
 
-    it('should throw UnauthorizedError if password is invalid', async () => {
+    it('should increment login attempts on wrong password', async () => {
       const userWithCompare = {
         ...fakeUser,
         comparePassword: jest.fn().mockResolvedValue(false),
       } as unknown as User;
 
+      mockRedis.get
+        .mockResolvedValueOnce(null)  // isAccountLocked
+        .mockResolvedValueOnce('2'); // getLoginAttempts
       mockUser.findOne.mockResolvedValue(userWithCompare);
+      mockRedis.set.mockResolvedValue('OK');
 
       await expect(
         login({ email: 'test@example.com', password: 'wrongpassword' })
       ).rejects.toThrow(AppError);
 
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        'login_attempts:test@example.com',
+        '3',
+        'EX',
+        expect.any(Number)
+      );
+    });
+
+    it('should lock account after max attempts', async () => {
+      const userWithCompare = {
+        ...fakeUser,
+        comparePassword: jest.fn().mockResolvedValue(false),
+      } as unknown as User;
+
+      mockRedis.get
+        .mockResolvedValueOnce(null) // isAccountLocked
+        .mockResolvedValueOnce('4'); // getLoginAttempts (4 -> 5 = locked)
+      mockUser.findOne.mockResolvedValue(userWithCompare);
+      mockRedis.set.mockResolvedValue('OK');
+
       try {
         await login({ email: 'test@example.com', password: 'wrongpassword' });
       } catch (e) {
-        expect((e as AppError).statusCode).toBe(401);
-        expect((e as AppError).message).toBe('Invalid credentials');
+        expect((e as AppError).message).toContain('Too many failed attempts');
       }
+
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        'login_locked:test@example.com',
+        'locked',
+        'EX',
+        expect.any(Number)
+      );
     });
 
     it('should return same structure as register', async () => {
@@ -171,7 +254,9 @@ describe('auth.service', () => {
         comparePassword: jest.fn().mockResolvedValue(true),
       } as unknown as User;
 
+      mockRedis.get.mockResolvedValue(null);
       mockUser.findOne.mockResolvedValue(userWithCompare);
+      mockRedis.del.mockResolvedValue(1);
       mockJwt.sign.mockReturnValue('token-456' as any);
 
       const result = await login({
