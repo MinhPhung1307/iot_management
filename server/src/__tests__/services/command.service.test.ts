@@ -21,22 +21,20 @@ jest.mock('../../mqtt/mqttClient', () => ({
   },
 }));
 
-jest.mock('../../websocket/socket', () => ({
-  serverSocket: {
-    emitDeviceUpdate: jest.fn(),
-  },
+jest.mock('../../strategies/commandStrategies', () => ({
+  getCommandStrategy: jest.fn(),
 }));
 
 import Device from '../../models/Device';
 import CommandHistory from '../../models/CommandHistory';
 import { mqttClient } from '../../mqtt/mqttClient';
-import { serverSocket } from '../../websocket/socket';
+import { getCommandStrategy } from '../../strategies/commandStrategies';
 import { sendCommand, getCommandHistory } from '../../services/command.service';
 
 const mockDevice = Device as any;
 const mockCommandHistory = CommandHistory as any;
 const mockMqttClient = mqttClient as jest.Mocked<typeof mqttClient>;
-const mockServerSocket = serverSocket as jest.Mocked<typeof serverSocket>;
+const mockGetCommandStrategy = getCommandStrategy as jest.MockedFunction<typeof getCommandStrategy>;
 
 describe('command.service', () => {
   const fakeDevice = {
@@ -56,6 +54,7 @@ describe('command.service', () => {
     it('should send command and return success', async () => {
       mockDevice.findByPk.mockResolvedValue(fakeDevice);
       mockCommandHistory.create.mockResolvedValue({});
+      mockGetCommandStrategy.mockReturnValue({ execute: jest.fn() });
 
       const result = await sendCommand(
         1,
@@ -64,6 +63,7 @@ describe('command.service', () => {
       );
 
       expect(mockDevice.findByPk).toHaveBeenCalledWith(1);
+      expect(mockGetCommandStrategy).toHaveBeenCalledWith('get_status');
       expect(mockMqttClient.sendCommand).toHaveBeenCalledWith(
         'Sensor-01',
         expect.objectContaining({
@@ -79,6 +79,7 @@ describe('command.service', () => {
     it('should save command history', async () => {
       mockDevice.findByPk.mockResolvedValue(fakeDevice);
       mockCommandHistory.create.mockResolvedValue({});
+      mockGetCommandStrategy.mockReturnValue({ execute: jest.fn() });
 
       await sendCommand(1, { command: 'turn_on' }, 1);
 
@@ -91,68 +92,55 @@ describe('command.service', () => {
       });
     });
 
-    it('should handle turn_on command - update device status', async () => {
-      const offlineDevice = { ...fakeDevice, update: jest.fn() };
-      mockDevice.findByPk.mockResolvedValue(offlineDevice);
+    it('should call turn_on strategy execute', async () => {
+      const mockExecute = jest.fn();
+      mockDevice.findByPk.mockResolvedValue(fakeDevice);
       mockCommandHistory.create.mockResolvedValue({});
+      mockGetCommandStrategy.mockReturnValue({ execute: mockExecute });
 
       await sendCommand(1, { command: 'turn_on' }, 1);
 
-      expect(offlineDevice.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: 'online',
-        })
-      );
-      expect(mockServerSocket.emitDeviceUpdate).toHaveBeenCalledWith(
-        1,
-        expect.objectContaining({
-          id: 1,
-          name: 'Sensor-01',
-          status: 'online',
-        })
-      );
+      expect(mockGetCommandStrategy).toHaveBeenCalledWith('turn_on');
+      expect(mockExecute).toHaveBeenCalledWith({
+        device: fakeDevice,
+        params: undefined,
+      });
     });
 
-    it('should handle turn_off command - update device status', async () => {
-      const onlineDevice = {
-        ...fakeDevice,
-        status: 'online',
-        update: jest.fn(),
-      };
-      mockDevice.findByPk.mockResolvedValue(onlineDevice);
+    it('should call turn_off strategy execute', async () => {
+      const mockExecute = jest.fn();
+      mockDevice.findByPk.mockResolvedValue(fakeDevice);
       mockCommandHistory.create.mockResolvedValue({});
+      mockGetCommandStrategy.mockReturnValue({ execute: mockExecute });
 
       await sendCommand(1, { command: 'turn_off' }, 1);
 
-      expect(onlineDevice.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: 'offline',
-        })
-      );
-      expect(mockServerSocket.emitDeviceUpdate).toHaveBeenCalledWith(
-        1,
-        expect.objectContaining({
-          id: 1,
-          name: 'Sensor-01',
-          status: 'offline',
-        })
-      );
+      expect(mockGetCommandStrategy).toHaveBeenCalledWith('turn_off');
+      expect(mockExecute).toHaveBeenCalledWith({
+        device: fakeDevice,
+        params: undefined,
+      });
     });
 
-    it('should not update status for non turn_on/turn_off commands', async () => {
-      const device = { ...fakeDevice, update: jest.fn() };
-      mockDevice.findByPk.mockResolvedValue(device);
+    it('should call default strategy for unknown commands', async () => {
+      const mockExecute = jest.fn();
+      mockDevice.findByPk.mockResolvedValue(fakeDevice);
       mockCommandHistory.create.mockResolvedValue({});
+      mockGetCommandStrategy.mockReturnValue({ execute: mockExecute });
 
       await sendCommand(1, { command: 'reboot' }, 1);
 
-      expect(device.update).not.toHaveBeenCalled();
-      expect(mockServerSocket.emitDeviceUpdate).not.toHaveBeenCalled();
+      expect(mockGetCommandStrategy).toHaveBeenCalledWith('reboot');
+      expect(mockExecute).toHaveBeenCalledWith({
+        device: fakeDevice,
+        params: undefined,
+      });
     });
 
     it('should not fail if command history save fails', async () => {
       mockDevice.findByPk.mockResolvedValue(fakeDevice);
       mockCommandHistory.create.mockRejectedValue(new Error('DB error'));
+      mockGetCommandStrategy.mockReturnValue({ execute: jest.fn() });
 
       const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
@@ -184,6 +172,7 @@ describe('command.service', () => {
     it('should return device info in response', async () => {
       mockDevice.findByPk.mockResolvedValue(fakeDevice);
       mockCommandHistory.create.mockResolvedValue({});
+      mockGetCommandStrategy.mockReturnValue({ execute: jest.fn() });
 
       const result = await sendCommand(1, { command: 'turn_on' }, 1);
 
@@ -192,6 +181,20 @@ describe('command.service', () => {
         name: 'Sensor-01',
         status: 'offline',
         lastSeen: null,
+      });
+    });
+
+    it('should pass params to strategy', async () => {
+      const mockExecute = jest.fn();
+      mockDevice.findByPk.mockResolvedValue(fakeDevice);
+      mockCommandHistory.create.mockResolvedValue({});
+      mockGetCommandStrategy.mockReturnValue({ execute: mockExecute });
+
+      await sendCommand(1, { command: 'set_mode', params: { mode: 'eco' } }, 1);
+
+      expect(mockExecute).toHaveBeenCalledWith({
+        device: fakeDevice,
+        params: { mode: 'eco' },
       });
     });
   });

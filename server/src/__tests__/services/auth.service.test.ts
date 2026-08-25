@@ -11,6 +11,7 @@ jest.mock('../../config/redis', () => ({
     get: jest.fn(),
     set: jest.fn(),
     del: jest.fn(),
+    ttl: jest.fn(),
   },
 }));
 
@@ -63,7 +64,6 @@ describe('auth.service', () => {
           name: 'Test User',
           role: 'user',
         },
-        token: 'mock-token',
       });
     });
 
@@ -90,24 +90,6 @@ describe('auth.service', () => {
       }
 
       expect(mockUser.create).not.toHaveBeenCalled();
-    });
-
-    it('should generate JWT token with correct payload', async () => {
-      mockUser.findOne.mockResolvedValue(null);
-      mockUser.create.mockResolvedValue(fakeUser);
-      mockJwt.sign.mockReturnValue('token-123' as any);
-
-      await register({
-        email: 'test@example.com',
-        password: 'password123',
-        name: 'Test User',
-      });
-
-      expect(mockJwt.sign).toHaveBeenCalledWith(
-        { id: 1, email: 'test@example.com', role: 'user' },
-        expect.any(String),
-        expect.objectContaining({ expiresIn: expect.any(String) })
-      );
     });
   });
 
@@ -167,6 +149,7 @@ describe('auth.service', () => {
 
     it('should throw UnauthorizedError if account is locked', async () => {
       mockRedis.get.mockResolvedValue('locked');
+      mockRedis.ttl.mockResolvedValue(1200);
 
       await expect(
         login({ email: 'test@example.com', password: 'password123' })

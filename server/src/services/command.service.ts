@@ -2,7 +2,7 @@ import CommandHistory from '../models/CommandHistory';
 import Device from '../models/Device';
 import { NotFoundError } from '../middleware/AppError';
 import { mqttClient } from '../mqtt/mqttClient';
-import { serverSocket } from '../websocket/socket';
+import { getCommandStrategy } from '../strategies/commandStrategies';
 
 export const sendCommand = async (
   deviceId: number,
@@ -17,24 +17,8 @@ export const sendCommand = async (
 
   const { command, params } = data;
 
-  // Handle status-changing commands
-  if (command === 'turn_on') {
-    await device.update({ status: 'online', lastSeen: new Date() });
-    serverSocket.emitDeviceUpdate(device.id, {
-      id: device.id,
-      name: device.name,
-      status: 'online',
-      lastSeen: new Date(),
-    });
-  } else if (command === 'turn_off') {
-    await device.update({ status: 'offline', lastSeen: new Date() });
-    serverSocket.emitDeviceUpdate(device.id, {
-      id: device.id,
-      name: device.name,
-      status: 'offline',
-      lastSeen: new Date(),
-    });
-  }
+  const strategy = getCommandStrategy(command);
+  await strategy.execute({ device, params });
 
   // Save command history (don't fail if table doesn't exist)
   try {
