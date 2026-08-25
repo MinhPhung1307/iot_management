@@ -1,96 +1,61 @@
-import { Response } from 'express';
-import Notification from '../models/Notification';
+import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../types';
+import * as notificationService from '../services/notification.service';
 
 export const getNotifications = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
-    const { isRead, limit = 20, offset = 0 } = req.query;
-
-    const whereClause: any = { userId: req.user!.id };
-    if (isRead !== undefined) {
-      whereClause.isRead = isRead === 'true';
-    }
-
-    const notifications = await Notification.findAndCountAll({
-      where: whereClause,
-      order: [['createdAt', 'DESC']],
-      limit: Number(limit),
-      offset: Number(offset),
-    });
-
-    const unreadCount = await Notification.count({
-      where: { userId: req.user!.id, isRead: false },
-    });
-
-    res.json({
-      notifications: notifications.rows,
-      total: notifications.count,
-      unreadCount,
-    });
+    const result = await notificationService.getNotifications(
+      req.user!.id,
+      req.query as any
+    );
+    res.json(result);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching notifications', error });
+    next(error);
   }
 };
 
 export const markAsRead = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
-    const notification = await Notification.findOne({
-      where: { id: req.params.id, userId: req.user!.id },
-    });
-
-    if (!notification) {
-      res.status(404).json({ message: 'Notification not found' });
-      return;
-    }
-
-    await notification.update({ isRead: true });
-
+    await notificationService.markAsRead(Number(req.params.id), req.user!.id);
     res.json({ message: 'Notification marked as read' });
   } catch (error) {
-    res.status(500).json({ message: 'Error updating notification', error });
+    next(error);
   }
 };
 
 export const markAllAsRead = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
-    await Notification.update(
-      { isRead: true },
-      { where: { userId: req.user!.id, isRead: false } }
-    );
-
+    await notificationService.markAllAsRead(req.user!.id);
     res.json({ message: 'All notifications marked as read' });
   } catch (error) {
-    res.status(500).json({ message: 'Error updating notifications', error });
+    next(error);
   }
 };
 
 export const deleteNotification = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
+  next: NextFunction
 ): Promise<void> => {
   try {
-    const notification = await Notification.findOne({
-      where: { id: req.params.id, userId: req.user!.id },
-    });
-
-    if (!notification) {
-      res.status(404).json({ message: 'Notification not found' });
-      return;
-    }
-
-    await notification.destroy();
-
+    await notificationService.deleteNotification(
+      Number(req.params.id),
+      req.user!.id
+    );
     res.json({ message: 'Notification deleted' });
   } catch (error) {
-    res.status(500).json({ message: 'Error deleting notification', error });
+    next(error);
   }
 };

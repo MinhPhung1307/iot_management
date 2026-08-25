@@ -1,96 +1,52 @@
-import { Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
-import User from '../models/User';
-import { AuthRequest, JwtPayload } from '../types';
+import { Request, Response, NextFunction } from 'express';
+import { AuthRequest } from '../types';
+import * as authService from '../services/auth.service';
 
-const generateToken = (user: User): string => {
-  const payload: JwtPayload = {
-    id: user.id,
-    email: user.email,
-    role: user.role,
-  };
-  return jwt.sign(payload, process.env.JWT_SECRET || 'secret', {
-    expiresIn: process.env.JWT_EXPIRE || '7d',
-  } as jwt.SignOptions);
-};
-
-export const register = async (req: Request, res: Response): Promise<void> => {
+export const register = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
-    const { email, password, name } = req.body;
-
-    const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) {
-      res.status(400).json({ message: 'Email already exists' });
-      return;
-    }
-
-    const user = await User.create({ email, password, name, role: 'user' });
-    const token = generateToken(user);
-
+    const result = await authService.register(req.body);
     res.status(201).json({
       message: 'User registered successfully',
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-      token,
+      ...result,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error registering user', error });
+    next(error);
   }
 };
 
-export const login = async (req: Request, res: Response): Promise<void> => {
+export const login = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      res.status(401).json({ message: 'Invalid credentials' });
-      return;
-    }
-
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      res.status(401).json({ message: 'Invalid credentials' });
-      return;
-    }
-
-    const token = generateToken(user);
-
+    const result = await authService.login(req.body);
     res.json({
       message: 'Login successful',
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-      token,
+      ...result,
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error logging in', error });
+    next(error);
   }
 };
 
-export const getMe = async (req: AuthRequest, res: Response): Promise<void> => {
+export const getMe = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
     if (!req.user) {
       res.status(401).json({ message: 'Not authenticated' });
       return;
     }
-
-    res.json({
-      user: {
-        id: req.user.id,
-        email: req.user.email,
-        name: req.user.name,
-        role: req.user.role,
-      },
-    });
+    const result = await authService.getMe(req.user.id);
+    res.json(result);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching user', error });
+    next(error);
   }
 };

@@ -6,13 +6,22 @@ import {
   deleteNotification,
 } from '../controllers/notificationController';
 import { authenticate } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import {
+  getNotificationsQuerySchema,
+  notificationIdParamSchema,
+} from '../validators/notification.validator';
 
 const router = Router();
 router.use(authenticate);
 
-router.get('/', getNotifications);
+router.get('/', validate(getNotificationsQuerySchema), getNotifications);
 router.put('/read-all', markAllAsRead);
-router.put('/:id/read', markAsRead);
-router.delete('/:id', deleteNotification);
+router.put('/:id/read', validate(notificationIdParamSchema), markAsRead);
+router.delete(
+  '/:id',
+  validate(notificationIdParamSchema),
+  deleteNotification
+);
 
 export default router;

@@ -12,6 +12,7 @@ import scheduleRoutes from './routes/scheduleRoutes';
 import User from './models/User';
 import { serverSocket } from './websocket/socket';
 import { mqttClient } from './mqtt/mqttClient';
+import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
 
@@ -33,6 +34,8 @@ app.use('/api/schedules', scheduleRoutes);
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
+
+app.use(errorHandler);
 
 const seedAdmin = async (): Promise<void> => {
   const adminEmail = process.env.ADMIN_EMAIL;
