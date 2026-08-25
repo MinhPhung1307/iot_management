@@ -53,18 +53,18 @@ Nền tảng quản lý thiết bị IoT toàn diện với giao diện web theo
 
 ```
 ┌─────────────┐     HTTP/WS      ┌──────────────┐     MQTT      ┌──────────────┐
-│   Browser   │◄────────────────►│   Express    │◄────────────►│  Mosquitto   │
-│  React App  │   REST + WS      │   Server     │   Pub/Sub    │  MQTT Broker │
-│   :3000     │                  │   :5000      │   :1883      │              │
-└─────────────┘                  └──────┬───────┘              └──────┬───────┘
-                                        │                             │
+│   Browser   │◄────────────────►│   Express    │◄────────────► │  Mosquitto   │
+│  React App  │   REST + WS      │   Server     │   Pub/Sub     │  MQTT Broker │
+│   :3000     │                  │   :5000      │   :1883       │              │
+└─────────────┘                  └──────┬───────┘               └──────┬───────┘
+                                        │                              │
                                    Sequelize                     MQTT Protocol
-                                        │                             │
-                                 ┌──────┴───────┐              ┌─────┴──────┐
-                                 │  PostgreSQL   │              │ IoT Devices│
-                                 │    :5432      │              │  Sensors   │
-                                 └──────────────┘              │  Actuators │
-                                                               └────────────┘
+                                        │                              │
+                                 ┌──────┴───────┐                ┌─────┴──────┐
+                                 │  PostgreSQL  │                │ IoT Devices│
+                                 │    :5432     │                │  Sensors   │
+                                 └──────────────┘                │  Actuators │
+                                                                 └────────────┘
 ```
 
 > 📖 Chi tiết kiến trúc và flow thực thi: xem [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
