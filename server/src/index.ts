@@ -15,6 +15,7 @@ import { Policy, PolicyCondition } from './models';
 import { serverSocket } from './websocket/socket';
 import { mqttClient } from './mqtt/mqttClient';
 import { pubsub } from './services/pubsub.service';
+import { batchWriter } from './services/batchWriter.service';
 import { errorHandler } from './middleware/errorHandler';
 import { runMigrations } from './database/migrations/run';
 import { PolicyEngine } from './domain/policies/PolicyEngine';
@@ -92,7 +93,8 @@ const startServer = async () => {
 
     serverSocket.init(httpServer);
     serverSocket.initPubSub(pubsub);
-    console.log('WebSocket + PubSub initialized');
+    batchWriter.start();
+    console.log('WebSocket + PubSub + BatchWriter initialized');
 
     try {
       mqttClient.setPubSub(pubsub);
@@ -111,9 +113,10 @@ const startServer = async () => {
   }
 };
 
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   mqttClient.disconnect();
-  pubsub.disconnect();
+  await batchWriter.stop();
+  await pubsub.disconnect();
   process.exit(0);
 });
 

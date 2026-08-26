@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { deviceAPI } from '../services/api';
 import { useSocket } from '../hooks/useSocket';
+import { useDebouncedCallback } from '../hooks/useDebouncedCallback';
 import { DeviceStats, Device } from '../types';
 
 const STATUS_COLORS = {
@@ -16,26 +17,6 @@ const Dashboard = () => {
   const [stats, setStats] = useState<DeviceStats | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const { isConnected, onDeviceUpdate } = useSocket();
-
-  useEffect(() => {
-    loadStats();
-    loadDevices();
-  }, []);
-
-  useEffect(() => {
-    const cleanup = onDeviceUpdate((data) => {
-      setDevices((prev) =>
-        prev.map((d) =>
-          d.id === data.deviceId
-            ? { ...d, status: data.status, lastSeen: data.lastSeen }
-            : d
-        )
-      );
-      loadStats();
-    });
-
-    return cleanup;
-  }, [onDeviceUpdate]);
 
   const loadStats = async () => {
     try {
@@ -54,6 +35,30 @@ const Dashboard = () => {
       console.error('Error loading devices:', error);
     }
   };
+
+  const debouncedLoadStats = useDebouncedCallback(useCallback(() => {
+    loadStats();
+  }, []), 2000);
+
+  useEffect(() => {
+    loadStats();
+    loadDevices();
+  }, []);
+
+  useEffect(() => {
+    const cleanup = onDeviceUpdate((data) => {
+      setDevices((prev) =>
+        prev.map((d) =>
+          d.id === data.deviceId
+            ? { ...d, status: data.status, lastSeen: data.lastSeen }
+            : d
+        )
+      );
+      debouncedLoadStats();
+    });
+
+    return cleanup;
+  }, [onDeviceUpdate, debouncedLoadStats]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

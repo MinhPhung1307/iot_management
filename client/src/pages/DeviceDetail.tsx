@@ -48,7 +48,11 @@ const DeviceDetail = () => {
   useEffect(() => {
     const cleanup = onDeviceData((data) => {
       if (data.deviceId === Number(id)) {
-        setDeviceData((prev) => [data, ...prev].slice(0, 100));
+        setDeviceData((prev) => {
+          // Skip duplicate timestamp
+          if (prev.length > 0 && prev[0].timestamp === data.timestamp) return prev;
+          return [data, ...prev].slice(0, 100);
+        });
       }
     });
 

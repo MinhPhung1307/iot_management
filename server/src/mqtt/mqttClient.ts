@@ -1,8 +1,8 @@
 import mqtt from 'mqtt';
 import dotenv from 'dotenv';
 import Device from '../models/Device';
-import DeviceData from '../models/DeviceData';
 import PubSubService, { PubSubChannels } from '../services/pubsub.service';
+import { batchWriter } from '../services/batchWriter.service';
 
 dotenv.config();
 
@@ -91,13 +91,7 @@ class MQTTClient {
     });
 
     if (payload.data) {
-      await DeviceData.create({
-        deviceId: device.id,
-        temperature: payload.data.temperature || null,
-        humidity: payload.data.humidity || null,
-        data: payload.data,
-        timestamp: new Date(),
-      });
+      batchWriter.add(device.id, payload.data);
     }
 
     if (!this.pubsub) return;

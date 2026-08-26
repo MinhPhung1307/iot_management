@@ -4,9 +4,18 @@ import jwt from 'jsonwebtoken';
 import { JwtPayload } from '../types';
 import PubSubService, { PubSubChannels } from '../services/pubsub.service';
 
+const DATA_THROTTLE_MS = 1000;
+
 class ServerSocket {
   private io: Server | null = null;
   private pubsub: PubSubService | null = null;
+
+  // Throttle state: track last status per device to skip duplicate broadcasts
+  private lastStatus: Map<number, string> = new Map();
+
+  // Throttle state: buffer telemetry data per device
+  private dataBuffer: Map<number, any[]> = new Map();
+  private dataTimer: NodeJS.Timeout | null = null;
 
   init(httpServer: HttpServer): void {
     this.io = new Server(httpServer, {
@@ -54,6 +63,9 @@ class ServerSocket {
       });
     });
 
+    // Start telemetry flush timer
+    this.dataTimer = setInterval(() => this.flushDataBuffer(), DATA_THROTTLE_MS);
+
     console.log('Socket.io initialized');
   }
 
@@ -62,13 +74,23 @@ class ServerSocket {
 
     pubsub.subscribe(PubSubChannels.DEVICE_UPDATE, (data) => {
       if (!this.io) return;
+
+      // Skip if status hasn't changed
+      const prevStatus = this.lastStatus.get(data.id);
+      if (prevStatus === data.status) return;
+      this.lastStatus.set(data.id, data.status);
+
       this.io.to(`device:${data.id}`).emit('device:update', data);
       this.io.emit('devices:status', data);
     });
 
     pubsub.subscribe(PubSubChannels.DEVICE_DATA, (data) => {
       if (!this.io) return;
-      this.io.to(`device:${data.deviceId}`).emit('device:data', data);
+
+      // Buffer telemetry, flush periodically
+      const existing = this.dataBuffer.get(data.deviceId) || [];
+      existing.push(data);
+      this.dataBuffer.set(data.deviceId, existing);
     });
 
     pubsub.subscribe(PubSubChannels.DEVICE_ALERT, (data) => {
@@ -77,6 +99,20 @@ class ServerSocket {
     });
 
     console.log('PubSub listeners registered');
+  }
+
+  private flushDataBuffer(): void {
+    if (!this.io || this.dataBuffer.size === 0) return;
+
+    for (const [deviceId, points] of this.dataBuffer) {
+      if (points.length === 0) continue;
+
+      // Send latest point for targeted room
+      const latest = points[points.length - 1];
+      this.io.to(`device:${deviceId}`).emit('device:data', latest);
+
+      this.dataBuffer.set(deviceId, []);
+    }
   }
 
   getIO(): Server | null {
