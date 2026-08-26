@@ -14,6 +14,7 @@ import User from './models/User';
 import { Policy, PolicyCondition } from './models';
 import { serverSocket } from './websocket/socket';
 import { mqttClient } from './mqtt/mqttClient';
+import { pubsub } from './services/pubsub.service';
 import { errorHandler } from './middleware/errorHandler';
 import { runMigrations } from './database/migrations/run';
 import { PolicyEngine } from './domain/policies/PolicyEngine';
@@ -90,9 +91,11 @@ const startServer = async () => {
     console.log('PolicyEngine initialized');
 
     serverSocket.init(httpServer);
-    console.log('WebSocket initialized');
+    serverSocket.initPubSub(pubsub);
+    console.log('WebSocket + PubSub initialized');
 
     try {
+      mqttClient.setPubSub(pubsub);
       mqttClient.connect();
       console.log('MQTT client connecting...');
     } catch (err) {
@@ -110,6 +113,7 @@ const startServer = async () => {
 
 process.on('SIGINT', () => {
   mqttClient.disconnect();
+  pubsub.disconnect();
   process.exit(0);
 });
 

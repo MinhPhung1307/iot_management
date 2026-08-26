@@ -2,7 +2,7 @@ import mqtt from 'mqtt';
 import dotenv from 'dotenv';
 import Device from '../models/Device';
 import DeviceData from '../models/DeviceData';
-import { serverSocket } from '../websocket/socket';
+import PubSubService, { PubSubChannels } from '../services/pubsub.service';
 
 dotenv.config();
 
@@ -10,10 +10,15 @@ class MQTTClient {
   private client: mqtt.MqttClient | null = null;
   private brokerUrl: string;
   private topic: string;
+  private pubsub: PubSubService | null = null;
 
   constructor() {
     this.brokerUrl = process.env.MQTT_BROKER || 'mqtt://localhost:1883';
     this.topic = process.env.MQTT_TOPIC || 'iot/devices';
+  }
+
+  setPubSub(pubsub: PubSubService): void {
+    this.pubsub = pubsub;
   }
 
   connect(): void {
@@ -95,13 +100,25 @@ class MQTTClient {
       });
     }
 
-    serverSocket.emitDeviceUpdate(device.id, {
+    if (!this.pubsub) return;
+
+    // Publish device status update
+    this.pubsub.publish(PubSubChannels.DEVICE_UPDATE, {
       id: device.id,
       name: device.name,
       status: payload.status || 'online',
       lastSeen: new Date(),
-      data: payload.data || null,
     });
+
+    // Publish telemetry data (was missing before)
+    if (payload.data) {
+      this.pubsub.publish(PubSubChannels.DEVICE_DATA, {
+        deviceId: device.id,
+        temperature: payload.data.temperature || null,
+        humidity: payload.data.humidity || null,
+        timestamp: new Date(),
+      });
+    }
   }
 
   publish(topic: string, message: any): void {

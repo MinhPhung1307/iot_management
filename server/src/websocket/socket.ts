@@ -2,9 +2,11 @@ import { Server as HttpServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { JwtPayload } from '../types';
+import PubSubService, { PubSubChannels } from '../services/pubsub.service';
 
 class ServerSocket {
   private io: Server | null = null;
+  private pubsub: PubSubService | null = null;
 
   init(httpServer: HttpServer): void {
     this.io = new Server(httpServer, {
@@ -55,29 +57,26 @@ class ServerSocket {
     console.log('Socket.io initialized');
   }
 
-  emitDeviceUpdate(deviceId: number, data: any): void {
-    if (!this.io) return;
+  initPubSub(pubsub: PubSubService): void {
+    this.pubsub = pubsub;
 
-    this.io.to(`device:${deviceId}`).emit('device:update', data);
-    this.io.emit('devices:status', { deviceId, ...data });
-  }
+    pubsub.subscribe(PubSubChannels.DEVICE_UPDATE, (data) => {
+      if (!this.io) return;
+      this.io.to(`device:${data.id}`).emit('device:update', data);
+      this.io.emit('devices:status', data);
+    });
 
-  emitDeviceData(deviceId: number, data: any): void {
-    if (!this.io) return;
+    pubsub.subscribe(PubSubChannels.DEVICE_DATA, (data) => {
+      if (!this.io) return;
+      this.io.to(`device:${data.deviceId}`).emit('device:data', data);
+    });
 
-    this.io.to(`device:${deviceId}`).emit('device:data', { deviceId, ...data });
-  }
+    pubsub.subscribe(PubSubChannels.DEVICE_ALERT, (data) => {
+      if (!this.io) return;
+      this.io.emit('device:alert', data);
+    });
 
-  emitAlert(deviceId: number, alert: any): void {
-    if (!this.io) return;
-
-    this.io.emit('device:alert', { deviceId, ...alert });
-  }
-
-  broadcastToAll(event: string, data: any): void {
-    if (!this.io) return;
-
-    this.io.emit(event, data);
+    console.log('PubSub listeners registered');
   }
 
   getIO(): Server | null {

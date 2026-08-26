@@ -3,6 +3,7 @@ import Device from '../models/Device';
 import { NotFoundError } from '../middleware/AppError';
 import { mqttClient } from '../mqtt/mqttClient';
 import { getCommandStrategy } from '../strategies/commandStrategies';
+import { pubsub } from './pubsub.service';
 
 export const sendCommand = async (
   deviceId: number,
@@ -18,7 +19,7 @@ export const sendCommand = async (
   const { command, params } = data;
 
   const strategy = getCommandStrategy(command);
-  await strategy.execute({ device, params });
+  await strategy.execute({ device, params, pubsub });
 
   // Save command history (don't fail if table doesn't exist)
   try {

@@ -25,10 +25,15 @@ jest.mock('../../strategies/commandStrategies', () => ({
   getCommandStrategy: jest.fn(),
 }));
 
+jest.mock('../../services/pubsub.service', () => ({
+  pubsub: { publish: jest.fn(), subscribe: jest.fn() },
+}));
+
 import Device from '../../models/Device';
 import CommandHistory from '../../models/CommandHistory';
 import { mqttClient } from '../../mqtt/mqttClient';
 import { getCommandStrategy } from '../../strategies/commandStrategies';
+import { pubsub } from '../../services/pubsub.service';
 import { sendCommand, getCommandHistory } from '../../services/command.service';
 
 const mockDevice = Device as any;
@@ -104,6 +109,7 @@ describe('command.service', () => {
       expect(mockExecute).toHaveBeenCalledWith({
         device: fakeDevice,
         params: undefined,
+        pubsub,
       });
     });
 
@@ -119,6 +125,7 @@ describe('command.service', () => {
       expect(mockExecute).toHaveBeenCalledWith({
         device: fakeDevice,
         params: undefined,
+        pubsub,
       });
     });
 
@@ -134,6 +141,7 @@ describe('command.service', () => {
       expect(mockExecute).toHaveBeenCalledWith({
         device: fakeDevice,
         params: undefined,
+        pubsub,
       });
     });
 
@@ -195,6 +203,7 @@ describe('command.service', () => {
       expect(mockExecute).toHaveBeenCalledWith({
         device: fakeDevice,
         params: { mode: 'eco' },
+        pubsub,
       });
     });
   });
