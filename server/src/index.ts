@@ -9,10 +9,15 @@ import deviceRoutes from './routes/deviceRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import groupRoutes from './routes/groupRoutes';
 import scheduleRoutes from './routes/scheduleRoutes';
+import policyRoutes from './routes/policyRoutes';
 import User from './models/User';
+import { Policy, PolicyCondition } from './models';
 import { serverSocket } from './websocket/socket';
 import { mqttClient } from './mqtt/mqttClient';
 import { errorHandler } from './middleware/errorHandler';
+import { runMigrations } from './database/migrations/run';
+import { PolicyEngine } from './domain/policies/PolicyEngine';
+import { PolicyRepository } from './infrastructure/repositories/PolicyRepository';
 
 dotenv.config();
 
@@ -30,6 +35,7 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/schedules', scheduleRoutes);
+app.use('/api/policies', policyRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
@@ -58,6 +64,9 @@ const seedAdmin = async (): Promise<void> => {
     password: adminPassword,
     name: adminName,
     role: 'admin',
+    department: 'management',
+    location: 'headquarters',
+    clearanceLevel: 5,
   });
 
   console.log(`Admin account created: ${adminEmail}`);
@@ -72,6 +81,13 @@ const startServer = async () => {
     console.log('Database synchronized');
 
     await seedAdmin();
+    await runMigrations();
+
+    // Initialize PolicyEngine
+    const policyRepository = new PolicyRepository();
+    const policyEngine = new PolicyEngine(policyRepository);
+    app.set('policyEngine', policyEngine);
+    console.log('PolicyEngine initialized');
 
     serverSocket.init(httpServer);
     console.log('WebSocket initialized');

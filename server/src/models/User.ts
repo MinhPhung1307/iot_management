@@ -7,7 +7,10 @@ export class User extends Model {
   public email!: string;
   public password!: string;
   public name!: string;
-  public role!: string;
+  public role!: 'admin' | 'manager' | 'operator' | 'viewer';
+  public department!: string | null;
+  public location!: string | null;
+  public clearanceLevel!: number;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 
@@ -42,10 +45,23 @@ User.init(
     role: {
       type: DataTypes.STRING(20),
       allowNull: false,
-      defaultValue: 'user',
+      defaultValue: 'viewer',
       validate: {
-        isIn: [['admin', 'user']],
+        isIn: [['admin', 'manager', 'operator', 'viewer']],
       },
+    },
+    department: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+    },
+    location: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+    },
+    clearanceLevel: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1,
     },
   },
   {

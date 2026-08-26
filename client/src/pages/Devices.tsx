@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { deviceAPI } from '../services/api';
 import { useSocket } from '../hooks/useSocket';
-import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { Device, Pagination } from '../types';
 import { Link } from 'react-router-dom';
 
 const Devices = () => {
-  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [devices, setDevices] = useState<Device[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [loading, setLoading] = useState(true);
@@ -18,6 +18,11 @@ const Devices = () => {
     limit: 10,
   });
   const { onDeviceUpdate } = useSocket();
+
+  // Permission checks
+  const canCreate = hasPermission('device:create');
+  const canUpdate = hasPermission('device:update');
+
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -168,13 +173,11 @@ const Devices = () => {
     }
   };
 
-  const isAdmin = user?.role === 'admin';
-
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Devices</h1>
-        {isAdmin && (
+        {canCreate && (
           <button
             onClick={handleAddDevice}
             className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center"
@@ -246,7 +249,7 @@ const Devices = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Last Seen
                 </th>
-                {isAdmin && (
+                {canUpdate && (
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Actions
                   </th>
@@ -294,7 +297,7 @@ const Devices = () => {
                         ? new Date(device.lastSeen).toLocaleString()
                         : 'Never'}
                     </td>
-                    {isAdmin && (
+                    {canUpdate && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
                           onClick={() => handleEditDevice(device)}

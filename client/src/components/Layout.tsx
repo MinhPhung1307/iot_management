@@ -50,6 +50,14 @@ const Layout = () => {
                 >
                   Notifications
                 </Link>
+                {user?.role === 'admin' && (
+                  <Link
+                    to="/policies"
+                    className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-500 hover:text-gray-900"
+                  >
+                    Policies
+                  </Link>
+                )}
               </div>
             </div>
             <div className="flex items-center">

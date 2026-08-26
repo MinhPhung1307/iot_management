@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { deviceAPI } from '../services/api';
 import { useSocket } from '../hooks/useSocket';
-import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { Device, DeviceData } from '../types';
 
 interface CommandButton {
@@ -18,7 +18,7 @@ interface CommandButton {
 const DeviceDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [device, setDevice] = useState<Device | null>(null);
   const [deviceData, setDeviceData] = useState<DeviceData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -236,7 +236,7 @@ const DeviceDetail = () => {
     }))
     .reverse();
 
-  const isAdmin = user?.role === 'admin';
+  const canExecute = hasPermission('device:execute');
 
   return (
     <div>
@@ -315,7 +315,7 @@ const DeviceDetail = () => {
         )}
       </div>
 
-      {isAdmin && (
+      {canExecute && (
         <div className="bg-white rounded-lg shadow p-4">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Remote Control</h3>
           

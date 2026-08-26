@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { deviceAPI } from '../services/api';
-import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { Device } from '../types';
 
 interface Schedule {
@@ -19,7 +19,7 @@ interface Schedule {
 }
 
 const Schedules = () => {
-  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
@@ -265,7 +265,9 @@ const Schedules = () => {
     return new Date(dateString).toLocaleString();
   };
 
-  const isAdmin = user?.role === 'admin';
+  const canCreate = hasPermission('schedule:create');
+  const canUpdate = hasPermission('schedule:update');
+
 
   const cronExamples = [
     { expression: '0 7 * * *', description: 'Every day at 7:00 AM' },
@@ -279,7 +281,7 @@ const Schedules = () => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Schedules</h1>
-        {isAdmin && (
+        {canCreate && (
           <button
             onClick={handleAddSchedule}
             className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center"
@@ -324,7 +326,7 @@ const Schedules = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Last Run
                 </th>
-                {isAdmin && (
+                {canUpdate && (
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Actions
                   </th>
@@ -375,7 +377,7 @@ const Schedules = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatDate(schedule.lastRun)}
                   </td>
-                  {isAdmin && (
+                   {canUpdate && (
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
                         onClick={() => handleExecuteNow(schedule)}

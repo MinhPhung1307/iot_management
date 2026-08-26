@@ -7,6 +7,7 @@ import DeviceDetail from './pages/DeviceDetail';
 import Groups from './pages/Groups';
 import Notifications from './pages/Notifications';
 import Schedules from './pages/Schedules';
+import Policies from './pages/Policies';
 import Login from './pages/Login';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -47,6 +48,7 @@ function App() {
             <Route path="groups" element={<Groups />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="schedules" element={<Schedules />} />
+            <Route path="policies" element={<Policies />} />
           </Route>
         </Routes>
       </BrowserRouter>

@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import sequelize from '../config/database';
 import User from '../models/User';
 import { JwtPayload } from '../types';
 import { ConflictError, UnauthorizedError, NotFoundError } from '../middleware/AppError';
@@ -61,6 +62,27 @@ export const getLockRemainingTime = async (email: string): Promise<number> => {
   return ttl;  // Số giây còn lại
 };
 
+const getPermissionsByRole = async (role: string): Promise<string[]> => {
+  const [rows] = await sequelize.query(`
+    SELECT p.name
+    FROM role_permissions rp
+    JOIN permissions p ON p.id = rp.permission_id
+    WHERE rp.role = :role
+  `, { replacements: { role } });
+  return (rows as any[]).map((r: any) => r.name);
+};
+
+const formatUserResponse = (user: User, permissions: string[]) => ({
+  id: user.id,
+  email: user.email,
+  name: user.name,
+  role: user.role,
+  department: user.department,
+  location: user.location,
+  clearanceLevel: user.clearanceLevel,
+  permissions,
+});
+
 export const register = async (data: {
   email: string;
   password: string;
@@ -75,16 +97,13 @@ export const register = async (data: {
     email: data.email,
     password: data.password,
     name: data.name,
-    role: 'user',
+    role: 'viewer',
   });
 
+  const permissions = await getPermissionsByRole(user.role);
+
   return {
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-    },
+    user: formatUserResponse(user, permissions),
   };
 };
 
@@ -92,7 +111,7 @@ export const login = async (data: { email: string; password: string }) => {
   if (await isAccountLocked(data.email)) {
     const lockTime = await getLockRemainingTime(data.email);
     throw new UnauthorizedError(
-      `Account locked due to too many failed attempts. Try again later ${Math.ceil(lockTime / 60)} min ${lockTime % 60} sec.`
+      `Account locked due to too many failed attempts. Try again later ${Math.floor(lockTime / 60)} min ${lockTime % 60} sec.`
     );
   }
 
@@ -116,14 +135,10 @@ export const login = async (data: { email: string; password: string }) => {
   await resetLoginAttempts(data.email);
 
   const token = generateToken(user);
+  const permissions = await getPermissionsByRole(user.role);
 
   return {
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-    },
+    user: formatUserResponse(user, permissions),
     token,
   };
 };
@@ -134,12 +149,9 @@ export const getMe = async (userId: number) => {
     throw new NotFoundError('User');
   }
 
+  const permissions = await getPermissionsByRole(user.role);
+
   return {
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-    },
+    user: formatUserResponse(user, permissions),
   };
 };

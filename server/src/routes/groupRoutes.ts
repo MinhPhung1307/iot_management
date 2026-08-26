@@ -6,7 +6,8 @@ import {
   updateGroup,
   deleteGroup,
 } from '../controllers/groupController';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
+import { abac } from '../middleware/abac';
 import { validate } from '../middleware/validate';
 import {
   createGroupSchema,
@@ -19,16 +20,16 @@ router.use(authenticate);
 
 router.get('/', getGroups);
 router.get('/:id', validate(groupIdParamSchema), getGroupById);
-router.post('/', authorize('admin'), validate(createGroupSchema), createGroup);
+router.post('/', abac('group', 'create'), validate(createGroupSchema), createGroup);
 router.put(
   '/:id',
-  authorize('admin'),
+  abac('group', 'update'),
   validate(updateGroupSchema),
   updateGroup
 );
 router.delete(
   '/:id',
-  authorize('admin'),
+  abac('group', 'delete'),
   validate(groupIdParamSchema),
   deleteGroup
 );

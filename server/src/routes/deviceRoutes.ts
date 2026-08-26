@@ -9,7 +9,8 @@ import {
   getDeviceStats,
 } from '../controllers/deviceController';
 import { sendCommand } from '../controllers/commandController';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
+import { abac } from '../middleware/abac';
 import { validate } from '../middleware/validate';
 import {
   createDeviceSchema,
@@ -26,16 +27,16 @@ router.use(authenticate);
 router.get('/stats', getDeviceStats);
 router.get('/', validate(getDevicesQuerySchema), getDevices);
 router.get('/:id', validate(deviceIdParamSchema), getDeviceById);
-router.post('/', authorize('admin'), validate(createDeviceSchema), createDevice);
+router.post('/', abac('device', 'create'), validate(createDeviceSchema), createDevice);
 router.put(
   '/:id',
-  authorize('admin'),
+  abac('device', 'update'),
   validate(updateDeviceSchema),
   updateDevice
 );
 router.delete(
   '/:id',
-  authorize('admin'),
+  abac('device', 'delete'),
   validate(deviceIdParamSchema),
   deleteDevice
 );
@@ -46,7 +47,7 @@ router.get(
 );
 router.post(
   '/:id/command',
-  authorize('admin'),
+  abac('device', 'execute'),
   validate(sendCommandSchema),
   sendCommand
 );

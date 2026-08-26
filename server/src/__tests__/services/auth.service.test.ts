@@ -1,9 +1,22 @@
-import jwt from 'jsonwebtoken';
-import User from '../../models/User';
-import { register, login, getMe } from '../../services/auth.service';
-import { AppError } from '../../middleware/AppError';
+jest.mock('../../models/User', () => {
+  const mockUser = {
+    findOne: jest.fn(),
+    create: jest.fn(),
+    findByPk: jest.fn(),
+  };
+  return { __esModule: true, default: mockUser };
+});
 
-jest.mock('../../models/User');
+jest.mock('../../config/database', () => ({
+  __esModule: true,
+  default: {
+    query: jest.fn().mockResolvedValue([
+      [{ name: 'device:read' }, { name: 'group:read' }, { name: 'schedule:read' }],
+      [],
+    ]),
+  },
+}));
+
 jest.mock('jsonwebtoken');
 jest.mock('../../config/redis', () => ({
   __esModule: true,
@@ -15,11 +28,17 @@ jest.mock('../../config/redis', () => ({
   },
 }));
 
+import jwt from 'jsonwebtoken';
+import User from '../../models/User';
+import sequelize from '../../config/database';
+import { register, login, getMe } from '../../services/auth.service';
+import { AppError } from '../../middleware/AppError';
 import redis from '../../config/redis';
 
 const mockUser = User as jest.Mocked<typeof User>;
 const mockJwt = jwt as jest.Mocked<typeof jwt>;
 const mockRedis = redis as jest.Mocked<typeof redis>;
+const mockSequelize = sequelize as jest.Mocked<typeof sequelize>;
 
 describe('auth.service', () => {
   const fakeUser = {
@@ -27,13 +46,20 @@ describe('auth.service', () => {
     email: 'test@example.com',
     password: 'hashedpassword',
     name: 'Test User',
-    role: 'user',
+    role: 'viewer',
+    department: null,
+    location: null,
+    clearanceLevel: 1,
     createdAt: new Date(),
     updatedAt: new Date(),
-  } as User;
+  } as any;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (mockSequelize.query as jest.Mock).mockResolvedValue([
+      [{ name: 'device:read' }, { name: 'group:read' }, { name: 'schedule:read' }],
+      [],
+    ]);
   });
 
   describe('register', () => {
@@ -55,14 +81,18 @@ describe('auth.service', () => {
         email: 'test@example.com',
         password: 'password123',
         name: 'Test User',
-        role: 'user',
+        role: 'viewer',
       });
       expect(result).toEqual({
         user: {
           id: 1,
           email: 'test@example.com',
           name: 'Test User',
-          role: 'user',
+          role: 'viewer',
+          department: null,
+          location: null,
+          clearanceLevel: 1,
+          permissions: ['device:read', 'group:read', 'schedule:read'],
         },
       });
     });
@@ -98,7 +128,7 @@ describe('auth.service', () => {
       const userWithCompare = {
         ...fakeUser,
         comparePassword: jest.fn().mockResolvedValue(true),
-      } as unknown as User;
+      };
 
       mockRedis.get.mockResolvedValue(null);
       mockUser.findOne.mockResolvedValue(userWithCompare);
@@ -120,7 +150,11 @@ describe('auth.service', () => {
           id: 1,
           email: 'test@example.com',
           name: 'Test User',
-          role: 'user',
+          role: 'viewer',
+          department: null,
+          location: null,
+          clearanceLevel: 1,
+          permissions: ['device:read', 'group:read', 'schedule:read'],
         },
         token: 'mock-token',
       });
@@ -130,11 +164,11 @@ describe('auth.service', () => {
       const userWithCompare = {
         ...fakeUser,
         comparePassword: jest.fn().mockResolvedValue(true),
-      } as unknown as User;
+      };
 
       mockRedis.get
-        .mockResolvedValueOnce(null)   // isAccountLocked
-        .mockResolvedValueOnce('2');   // getLoginAttempts
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce('2');
       mockUser.findOne.mockResolvedValue(userWithCompare);
       mockRedis.del.mockResolvedValue(1);
       mockJwt.sign.mockReturnValue('mock-token' as any);
@@ -185,11 +219,11 @@ describe('auth.service', () => {
       const userWithCompare = {
         ...fakeUser,
         comparePassword: jest.fn().mockResolvedValue(false),
-      } as unknown as User;
+      };
 
       mockRedis.get
-        .mockResolvedValueOnce(null)  // isAccountLocked
-        .mockResolvedValueOnce('2'); // getLoginAttempts
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce('2');
       mockUser.findOne.mockResolvedValue(userWithCompare);
       mockRedis.set.mockResolvedValue('OK');
 
@@ -209,11 +243,11 @@ describe('auth.service', () => {
       const userWithCompare = {
         ...fakeUser,
         comparePassword: jest.fn().mockResolvedValue(false),
-      } as unknown as User;
+      };
 
       mockRedis.get
-        .mockResolvedValueOnce(null) // isAccountLocked
-        .mockResolvedValueOnce('4'); // getLoginAttempts (4 -> 5 = locked)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce('4');
       mockUser.findOne.mockResolvedValue(userWithCompare);
       mockRedis.set.mockResolvedValue('OK');
 
@@ -235,7 +269,7 @@ describe('auth.service', () => {
       const userWithCompare = {
         ...fakeUser,
         comparePassword: jest.fn().mockResolvedValue(true),
-      } as unknown as User;
+      };
 
       mockRedis.get.mockResolvedValue(null);
       mockUser.findOne.mockResolvedValue(userWithCompare);
@@ -253,7 +287,11 @@ describe('auth.service', () => {
         id: 1,
         email: 'test@example.com',
         name: 'Test User',
-        role: 'user',
+        role: 'viewer',
+        department: null,
+        location: null,
+        clearanceLevel: 1,
+        permissions: ['device:read', 'group:read', 'schedule:read'],
       });
     });
   });
@@ -270,7 +308,11 @@ describe('auth.service', () => {
           id: 1,
           email: 'test@example.com',
           name: 'Test User',
-          role: 'user',
+          role: 'viewer',
+          department: null,
+          location: null,
+          clearanceLevel: 1,
+          permissions: ['device:read', 'group:read', 'schedule:read'],
         },
       });
     });

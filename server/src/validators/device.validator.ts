@@ -27,8 +27,8 @@ export const updateDeviceSchema = z.object({
 
 export const getDevicesQuerySchema = z.object({
   query: z.object({
-    type: deviceTypeEnum.optional(),
-    status: deviceStatusEnum.optional(),
+    type: z.preprocess(v => v === '' ? undefined : v, deviceTypeEnum.optional()),
+    status: z.preprocess(v => v === '' ? undefined : v, deviceStatusEnum.optional()),
     location: z.string().optional(),
     search: z.string().optional(),
     page: z.string().regex(/^\d+$/).optional(),

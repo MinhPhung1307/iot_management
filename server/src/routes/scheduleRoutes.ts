@@ -7,7 +7,8 @@ import {
   deleteSchedule,
   executeSchedule,
 } from '../controllers/scheduleController';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate } from '../middleware/auth';
+import { abac } from '../middleware/abac';
 import { validate } from '../middleware/validate';
 import {
   createScheduleSchema,
@@ -21,22 +22,22 @@ router.use(authenticate);
 
 router.get('/', validate(getSchedulesQuerySchema), getSchedules);
 router.get('/:id', validate(scheduleIdParamSchema), getScheduleById);
-router.post('/', authorize('admin'), validate(createScheduleSchema), createSchedule);
+router.post('/', abac('schedule', 'create'), validate(createScheduleSchema), createSchedule);
 router.put(
   '/:id',
-  authorize('admin'),
+  abac('schedule', 'update'),
   validate(updateScheduleSchema),
   updateSchedule
 );
 router.delete(
   '/:id',
-  authorize('admin'),
+  abac('schedule', 'delete'),
   validate(scheduleIdParamSchema),
   deleteSchedule
 );
 router.post(
   '/:id/execute',
-  authorize('admin'),
+  abac('schedule', 'execute'),
   validate(scheduleIdParamSchema),
   executeSchedule
 );

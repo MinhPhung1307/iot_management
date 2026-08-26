@@ -15,7 +15,7 @@ Nền tảng quản lý thiết bị IoT toàn diện với giao diện web theo
 | ⏰ **Lên lịch tự động** | Cron expression, one-time, recurring schedules |
 | 📂 **Nhóm thiết bị** | Tổ chức thiết bị theo nhóm/khu vực |
 | 🔔 **Thông báo** | Hệ thống notification với đánh dấu đã đọc |
-| 🔐 **Phân quyền** | JWT Authentication, Role-based (Admin/User) |
+| 🔐 **Phân quyền** | JWT Authentication, ABAC (Attribute-Based Access Control) |
 | 🔄 **WebSocket** | Cập nhật trạng thái real-time qua Socket.io |
 | 🦟 **MQTT Protocol** | Giao tiếp thiết bị IoT qua Mosquitto broker |
 
@@ -350,6 +350,7 @@ ADMIN_NAME=admin
 | Kiến trúc & Flow | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Sơ đồ kiến trúc, ERD, sequence diagrams |
 | Tài liệu phát triển | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Setup, conventions, thêm feature, troubleshooting |
 | Hướng dẫn sử dụng | [docs/USER_GUIDE.md](docs/USER_GUIDE.md) | Hướng dẫn cho end-user |
+| ABAC Guide | [docs/ABAC_GUIDE.md](docs/ABAC_GUIDE.md) | Hướng dẫn ABAC Policy Engine |
 | Kế hoạch phát triển | [plan.md](plan.md) | Timeline, trạng thái, known issues |
 
 ---

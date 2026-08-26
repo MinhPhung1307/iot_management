@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { AuthResponse, Device, DeviceData, DeviceStats, Pagination } from '../types';
+import { AuthResponse, Device, DeviceData, DeviceStats, Pagination, Policy, CreatePolicyInput, UpdatePolicyInput } from '../types';
 
 const api = axios.create({
   baseURL: '/api',
@@ -49,6 +49,21 @@ export const deviceAPI = {
     api.post<{ device: Device }>(`/devices/${id}/command`, { command, params }),
   getStats: () =>
     api.get<DeviceStats>('/devices/stats'),
+};
+
+export const policyAPI = {
+  getAll: () =>
+    api.get<Policy[]>('/policies'),
+  getById: (id: number) =>
+    api.get<Policy>(`/policies/${id}`),
+  create: (data: CreatePolicyInput) =>
+    api.post<Policy>('/policies', data),
+  update: (id: number, data: UpdatePolicyInput) =>
+    api.put<Policy>(`/policies/${id}`, data),
+  delete: (id: number) =>
+    api.delete(`/policies/${id}`),
+  toggleActive: (id: number) =>
+    api.patch<Policy>(`/policies/${id}/toggle`),
 };
 
 export default api;

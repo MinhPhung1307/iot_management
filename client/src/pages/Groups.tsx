@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { deviceAPI } from '../services/api';
-import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { Device } from '../types';
 
 interface DeviceGroup {
@@ -14,7 +14,7 @@ interface DeviceGroup {
 }
 
 const Groups = () => {
-  const { user } = useAuth();
+  const { hasPermission } = usePermissions();
   const [groups, setGroups] = useState<DeviceGroup[]>([]);
   const [allDevices, setAllDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,13 +184,15 @@ const Groups = () => {
     }
   };
 
-  const isAdmin = user?.role === 'admin';
+  const canCreate = hasPermission('group:create');
+  const canUpdate = hasPermission('group:update');
+
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Device Groups</h1>
-        {isAdmin && (
+        {canCreate && (
           <button
             onClick={handleAddGroup}
             className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center"
@@ -216,7 +218,7 @@ const Groups = () => {
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-semibold text-gray-900">{group.name}</h3>
-                  {isAdmin && (
+                  {canUpdate && (
                     <div className="space-x-2">
                       <button
                         onClick={() => handleEditGroup(group)}
