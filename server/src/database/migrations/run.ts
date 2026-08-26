@@ -16,7 +16,7 @@ const migrations = [
           id: { type: 'INTEGER', primaryKey: true, autoIncrement: true },
           name: { type: 'VARCHAR(255)', allowNull: false, unique: true },
           executed_at: { type: 'DATE', defaultValue: new Date() },
-        }, { transaction }).catch(() => {});
+        }, { transaction });
 
         // 1. Add ABAC attributes to users table
         await queryInterface.sequelize.query(`
@@ -204,31 +204,31 @@ const migrations = [
 
 export const runMigrations = async (): Promise<void> => {
   try {
-    // Check if migrations table exists
-    const [results] = await sequelize.query(`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_name = 'migrations'
+    // Temporarily disable logging
+    const originalLogging = sequelize.options.logging;
+    sequelize.options.logging = false;
+
+    // Ensure migrations table exists
+    await sequelize.query(`
+      CREATE TABLE IF NOT EXISTS migrations (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        executed_at TIMESTAMP DEFAULT NOW()
       );
     `);
-    const tableExists = (results as any)[0].exists;
-
-    if (!tableExists) {
-      console.log('Running initial migration...');
-    }
 
     // Get executed migrations
-    let executedMigrations: string[] = [];
-    if (tableExists) {
-      const [rows] = await sequelize.query(`SELECT name FROM migrations`);
-      executedMigrations = (rows as any[]).map((r: any) => r.name);
-    }
+    const [rows] = await sequelize.query(`SELECT name FROM migrations`);
+    const executedMigrations = (rows as any[]).map((r: any) => r.name);
+
+    // Restore logging
+    sequelize.options.logging = originalLogging;
 
     // Run pending migrations
+    const queryInterface = sequelize.getQueryInterface();
     for (const migration of migrations) {
       if (!executedMigrations.includes(migration.name)) {
         console.log(`Running migration: ${migration.name}`);
-        const queryInterface = sequelize.getQueryInterface();
         await migration.up(queryInterface);
         console.log(`Migration ${migration.name} completed`);
       }
@@ -240,3 +240,10 @@ export const runMigrations = async (): Promise<void> => {
     throw error;
   }
 };
+
+// Run directly if called
+if (require.main === module) {
+  runMigrations()
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
+}

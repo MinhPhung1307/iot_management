@@ -10,7 +10,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "migrate": "ts-node src/config/database.ts migrate",
+    "migrate": "ts-node src/database/migrations/run.ts",
     "seed": "ts-node src/config/database.ts seed"
   },
   "dependencies": {

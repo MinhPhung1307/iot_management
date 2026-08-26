@@ -79,12 +79,6 @@ const startServer = async () => {
     await sequelize.authenticate();
     console.log('PostgreSQL connected successfully');
 
-    await sequelize.sync({ alter: true });
-    console.log('Database synchronized');
-
-    await seedAdmin();
-    await runMigrations();
-
     // Initialize PolicyEngine
     const policyRepository = new PolicyRepository();
     const policyEngine = new PolicyEngine(policyRepository);
